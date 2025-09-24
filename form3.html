@@ -1,0 +1,254 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BonkRunner with Lives</title>
+<style>
+  body { font-family: sans-serif; margin: 0; background: #111; color: #eee; text-align: center; }
+  .hidden { display: none; }
+  .screen { padding: 20px; }
+  input { padding: 8px; margin: 6px; border-radius: 4px; border: none; }
+  button { padding: 10px 16px; margin: 8px; border: none; border-radius: 4px; background: #28a; color: #fff; cursor: pointer; }
+  canvas { background: #222; display: block; margin: 20px auto; border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<div id="paymentScreen" class="screen">
+  <h1>BonkRunner</h1>
+  <p>Pay $1.99 to play</p>
+  <button id="payBtn">Pay Now</button>
+  <p id="payStatus"></p>
+</div>
+
+<div id="formScreen" class="screen hidden">
+  <h2>Player Info</h2>
+  <form id="playerForm">
+    <input id="name" type="text" placeholder="Your name" required><br>
+    <input id="email" type="email" placeholder="you@example.com" required><br>
+    <button type="submit">Start Game</button>
+  </form>
+</div>
+
+<div id="gameScreen" class="screen hidden">
+  <h2>BonkRunner Game</h2>
+  <canvas id="gameCanvas" width="800" height="300"></canvas>
+  <p id="score">Score: 0 | Lives: 3</p>
+</div>
+
+<script>
+const payBtn = document.getElementById('payBtn');
+const payStatus = document.getElementById('payStatus');
+const paymentScreen = document.getElementById('paymentScreen');
+const formScreen = document.getElementById('formScreen');
+const gameScreen = document.getElementById('gameScreen');
+
+let playerName, playerEmail;
+
+// ---- Fake payment ----
+payBtn.addEventListener('click', () => {
+  payStatus.textContent = "Processing payment...";
+  setTimeout(() => {
+    payStatus.textContent = "Payment successful ✅";
+    setTimeout(() => {
+      paymentScreen.classList.add('hidden');
+      formScreen.classList.remove('hidden');
+    }, 1000);
+  }, 1500);
+});
+
+// ---- Form ----
+document.getElementById('playerForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  playerName = document.getElementById('name').value.trim();
+  playerEmail = document.getElementById('email').value.trim();
+  if (playerName && playerEmail) {
+    formScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    startGame();
+  }
+});
+
+function startGame() {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const groundY = 250;
+
+  let lives = 3;
+  let score = 0;
+  let speed = 5;
+  let obstacles = [];
+  let spawnTimer = 0;
+  let frameCount = 0;
+  let gameOver = false;
+
+  let player = { 
+    x: 50, y: groundY - 30, w: 30, h: 30, vy: 0,
+    targetH: 30, targetW: 30
+  };
+  const gravity = 0.7;
+  const jumpForce = -12;
+
+  // ---- Controls ----
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && player.y >= groundY - player.h) {
+      player.vy = jumpForce;
+    }
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+      player.targetH = 18;
+      player.targetW = 40;
+    }
+  });
+
+  document.addEventListener('keyup', (e) => {
+    if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+      player.targetH = 30;
+      player.targetW = 30;
+    }
+  });
+
+  // ---- Spawn obstacles ----
+  function spawnObstacle() {
+    const type = Math.random();
+    if (type < 0.6) {
+      // Ground block
+      const height = 30 + Math.random()*20;
+      obstacles.push({ x: canvas.width, y: groundY - height, w: 20, h: height, flying: false });
+    } else {
+      // Bird (flying obstacle)
+      const yPos = groundY - (60 + Math.random()*40);
+      obstacles.push({ 
+        x: canvas.width, y: yPos, w: 30, h: 20, flying: true,
+        baseY: yPos, amplitude: 10 + Math.random()*10,
+        phase: Math.random()*Math.PI*2
+      });
+    }
+  }
+
+  // ---- Reset after losing a life ----
+  function resetLife() {
+    player.y = groundY - player.h;
+    player.vy = 0;
+    obstacles = [];
+    spawnTimer = 0;
+    score = 0;
+    speed = 5;
+    gameOver = false;
+    updateScore();
+    requestAnimationFrame(loop);
+  }
+
+  function updateScore() {
+    document.getElementById('score').textContent = `Score: ${score} | Lives: ${lives}`;
+  }
+
+  // ---- Helpers ----
+  function drawRoundedRect(x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  function drawBird(o, frame) {
+    // Body
+    ctx.fillStyle = "#f55";
+    ctx.fillRect(o.x, o.y, o.w, o.h);
+
+    // Wings flap up/down with sine
+    const wingOffset = Math.sin(frame*0.2 + o.phase) * 6;
+    ctx.fillStyle = "#faa";
+    ctx.beginPath();
+    ctx.moveTo(o.x + o.w/2, o.y); // top middle of bird
+    ctx.lineTo(o.x - 10, o.y - 10 + wingOffset);
+    ctx.lineTo(o.x, o.y + o.h/2);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(o.x + o.w/2, o.y); 
+    ctx.lineTo(o.x + o.w + 10, o.y - 10 - wingOffset);
+    ctx.lineTo(o.x + o.w, o.y + o.h/2);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // ---- Game loop ----
+  function loop() {
+    if (gameOver) return;
+    frameCount++;
+
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Update player physics
+    player.vy += gravity;
+    player.y += player.vy;
+    if (player.y > groundY - player.h) { player.y = groundY - player.h; player.vy = 0; }
+
+    // Smooth duck/stand
+    player.h += (player.targetH - player.h) * 0.2;
+    player.w += (player.targetW - player.w) * 0.2;
+    player.y = groundY - player.h;
+
+    // Draw player
+    ctx.fillStyle = "#0f0";
+    drawRoundedRect(player.x, player.y, player.w, player.h, 5);
+
+    // Spawn obstacles
+    spawnTimer++;
+    if (spawnTimer > 90 - speed*2) {
+      spawnObstacle();
+      spawnTimer = 0;
+    }
+
+    // Update & draw obstacles
+    for (let i = obstacles.length-1; i>=0; i--) {
+      const o = obstacles[i];
+      o.x -= speed;
+
+      if (o.flying) {
+        o.y = o.baseY + Math.sin(frameCount*0.1 + o.phase) * o.amplitude;
+        drawBird(o, frameCount);
+      } else {
+        ctx.fillStyle = "#f00";
+        drawRoundedRect(o.x, o.y, o.w, o.h, 3);
+      }
+
+      // Collision detection
+      if (player.x < o.x + o.w && player.x + player.w > o.x &&
+          player.y < o.y + o.h && player.y + player.h > o.y) {
+        lives--;
+        if (lives > 0) {
+          resetLife();
+        } else {
+          alert("Game Over! All lives lost. Returning to form.");
+          gameScreen.classList.add('hidden');
+          formScreen.classList.remove('hidden');
+        }
+        return;
+      }
+
+      if (o.x + o.w < 0) obstacles.splice(i, 1);
+    }
+
+    // Score
+    score++;
+    speed += 0.001;
+    updateScore();
+
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+}
+</script>
+</body>
+</html>
