@@ -91,8 +91,11 @@ function startGame() {
 
   // ---- Controls ----
   document.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' && player.y >= groundY - player.h) {
-      player.vy = jumpForce;
+    if (e.code === 'Space' || e.code === 'ArrowUp') {
+      // Allow jump if player is basically on the ground
+      if (Math.abs(player.y - (groundY - player.h)) < 2) {
+        player.vy = jumpForce;
+      }
     }
     if (e.code === 'ArrowDown' || e.code === 'KeyS') {
       player.targetH = 18;
@@ -163,18 +166,21 @@ function startGame() {
     ctx.fillStyle = "#f55";
     ctx.fillRect(o.x, o.y, o.w, o.h);
 
-    // Wings flap up/down with sine
+    // Wings flap with sine
     const wingOffset = Math.sin(frame*0.2 + o.phase) * 6;
     ctx.fillStyle = "#faa";
+
+    // Left wing
     ctx.beginPath();
-    ctx.moveTo(o.x + o.w/2, o.y); // top middle of bird
+    ctx.moveTo(o.x + o.w/2, o.y);
     ctx.lineTo(o.x - 10, o.y - 10 + wingOffset);
     ctx.lineTo(o.x, o.y + o.h/2);
     ctx.closePath();
     ctx.fill();
 
+    // Right wing
     ctx.beginPath();
-    ctx.moveTo(o.x + o.w/2, o.y); 
+    ctx.moveTo(o.x + o.w/2, o.y);
     ctx.lineTo(o.x + o.w + 10, o.y - 10 - wingOffset);
     ctx.lineTo(o.x + o.w, o.y + o.h/2);
     ctx.closePath();
