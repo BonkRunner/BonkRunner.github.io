@@ -10,6 +10,19 @@
   input, button { padding: 8px 12px; margin: 6px; border-radius: 4px; border: none; }
   button { background: #28a; color: #fff; cursor: pointer; }
   canvas { background: #222; display: block; margin: 20px auto; border-radius: 8px; touch-action: none; }
+
+  /* Game Over Box */
+  #gameOverBox {
+    position: absolute;
+    top: 50%; left: 50%;
+    transform: translate(-50%,-50%);
+    background: #222; color: #fff;
+    border: 2px solid #f00; padding: 30px;
+    border-radius: 12px; text-align: center;
+    display: none; z-index: 1000;
+  }
+  #gameOverBox button { margin-top: 20px; background: #f00; }
+  
   #leaderboard { margin-top: 20px; text-align: center; }
   #leaderboard h3 { margin-bottom: 8px; }
   #leaderboard ol { padding-left: 0; list-style: none; }
@@ -46,6 +59,13 @@
   <p id="score">Score: 0 | Lives: 3</p>
 </div>
 
+<!-- Game Over Box -->
+<div id="gameOverBox">
+  <h2>Game Over!</h2>
+  <p id="finalScore"></p>
+  <button id="restartBtn">Restart Game</button>
+</div>
+
 <script>
 // -------- Leaderboard --------
 function loadLeaderboard() {
@@ -69,7 +89,6 @@ function updateLeaderboardDisplay() {
 
 function addScore(name, email, score) {
   let data = loadLeaderboard();
-  // Check if player exists, update if new score higher
   const idx = data.findIndex(e => e.name===name && e.email===email);
   if (idx >= 0) {
     if (score > data[idx].score) data[idx].score = score;
@@ -86,6 +105,9 @@ function addScore(name, email, score) {
 const paymentScreen = document.getElementById('paymentScreen');
 const formScreen = document.getElementById('formScreen');
 const gameScreen = document.getElementById('gameScreen');
+const gameOverBox = document.getElementById('gameOverBox');
+const finalScoreText = document.getElementById('finalScore');
+const restartBtn = document.getElementById('restartBtn');
 let playerName="", playerEmail="";
 
 document.getElementById('payBtn').addEventListener('click',()=>{
@@ -168,6 +190,18 @@ function startGame(){
   }
   function resetLife(){ player.y=groundY-player.h; player.vy=0; player.targetH=30; player.targetW=30; obstacles=[]; spawnTimer=0; score=0; speed=5; gameOver=false; updateScoreDisplay(); requestAnimationFrame(loop); }
 
+  function showGameOver(){
+    finalScoreText.textContent = `Highest Score: ${bestScore}`;
+    gameOverBox.style.display = 'block';
+    addScore(playerName, playerEmail, bestScore);
+  }
+
+  restartBtn.onclick = ()=>{
+    gameOverBox.style.display='none';
+    gameScreen.classList.remove('hidden');
+    startGame();
+  }
+
   // -------- Game Loop --------
   function loop(){
     if(gameOver) return;
@@ -193,9 +227,8 @@ function startGame(){
           document.removeEventListener('keyup',onKeyUp);
           canvas.removeEventListener('touchstart',onTouchStart);
           gameOver=true;
-          alert(`Game Over! Highest Score: ${bestScore}`);
-          addScore(playerName,playerEmail,bestScore);
           gameScreen.classList.add('hidden'); formScreen.classList.remove('hidden');
+          showGameOver();
         } return;
       }
       if(o.x+o.w<0) obstacles.splice(i,1);
