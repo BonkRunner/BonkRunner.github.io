@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>BonkRunner with Leaderboard</title>
+<style>
+  body { font-family: sans-serif; margin: 0; background: #111; color: #eee; text-align: center; }
+  .hidden { display: none; }
+  .screen { padding: 20px; }
+  input, button { padding: 8px 12px; margin: 6px; border-radius: 4px; border: none; }
+  button { background: #28a; color: #fff; cursor: pointer; }
+  canvas { background: #222; display: block; margin: 20px auto; border-radius: 8px; }
+  #leaderboard { margin-top: 20px; text-align: center; }
+  #leaderboard h3 { margin-bottom: 8px; }
+  #leaderboard ol { padding-left: 0; list-style: none; }
+  #leaderboard li { margin: 4px 0; }
+</style>
+</head>
+<body>
+
+<div id="paymentScreen" class="screen">
+  <h1>BonkRunner</h1>
+  <p>Pay $1.99 to play</p>
+  <button id="payBtn">Pay Now</button>
+  <p id="payStatus"></p>
+</div>
+
+<div id="formScreen" class="screen hidden">
+  <h2>Player Info</h2>
+  <form id="playerForm">
+    <input id="name" type="text" placeholder="Your name" required><br>
+    <input id="email" type="email" placeholder="you@example.com" required><br>
+    <button type="submit">Start Game</button>
+  </form>
+
+  <!-- Leaderboard -->
+  <div id="leaderboard">
+    <h3>Leaderboard</h3>
+    <ol id="leaderboardList"></ol>
+  </div>
+</div>
+
+<div id="gameScreen" class="screen hidden">
+  <h2>BonkRunner Game</h2>
+  <canvas id="gameCanvas" width="800" height="300"></canvas>
+  <p id="score">Score: 0 | Lives: 3</p>
+</div>
+
+<script>
+const paymentScreen = document.getElementById('paymentScreen');
+const formScreen = document.getElementById('formScreen');
+const gameScreen = document.getElementById('gameScreen');
+const leaderboardList = document.getElementById('leaderboardList');
+let playerName = "";
+let playerEmail = "";
+
+// ---- Leaderboard functions ----
+function loadLeaderboard() {
+  const data = JSON.parse(localStorage.getItem('bonkLeaderboard') || "[]");
+  return data;
+}
+
+function saveLeaderboard(data) {
+  localStorage.setItem('bonkLeaderboard', JSON.stringify(data));
+}
+
+function updateLeaderboardDisplay() {
+  const data = loadLeaderboard();
+  leaderboardList.innerHTML = "";
+  data.slice(0,5).forEach(entry => {
+    const li = document.createElement("li");
+    li.textContent = `${entry.name}: ${entry.score}`;
+    leaderboardList.appendChild(li);
+  });
+}
+
+function addScore(name, score) {
+  let data = loadLeaderboard();
+  data.push({name, score});
+  // Sort high → low
+  data.sort((a,b) => b.score - a.score);
+  // Keep only top 5
+  data = data.slice(0,5);
+  saveLeaderboard(data);
+  updateLeaderboardDisplay();
+}
+
+// ---- Fake payment ----
+document.getElementById('payBtn').addEventListener('click', () => {
+  document.getElementById('payStatus').textContent = "Processing payment...";
+  setTimeout(() => {
+    document.getElementById('payStatus').textContent = "Payment successful ✅";
+    setTimeout(() => {
+      paymentScreen.classList.add('hidden');
+      formScreen.classList.remove('hidden');
+      updateLeaderboardDisplay();
+    }, 1000);
+  }, 1500);
+});
+
+// ---- Form ----
+document.getElementById('playerForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  playerName = document.getElementById('name').value.trim();
+  playerEmail = document.getElementById('email').value.trim();
+  if (playerName && playerEmail) {
+    formScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    startGame();
+  }
+});
+
+// ---- Game function (shortened for clarity) ----
+function startGame() {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  const groundY = 250;
+  let score = 0;
+  let lives = 3;
+  let gameOver = false;
+
+  let player = {x:50,y:groundY-30,w:30,h:30,vy:0,onGround:true};
+  const gravity = 0.7;
+  const jumpForce = -12;
+
+  // Basic controls (jump only, to keep this short)
+  document.onkeydown = (e) => {
+    if ((e.code==="Space"||e.code==="ArrowUp") && player.onGround) {
+      e.preventDefault();
+      player.vy = jumpForce;
+      player.onGround = false;
+    }
+  };
+
+  function updateScoreDisplay() {
+    document.getElementById('score').textContent = `Score: ${score} | Lives: ${lives}`;
+  }
+
+  function loop() {
+    if (gameOver) return;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Physics
+    player.vy += gravity;
+    player.y += player.vy;
+    if (player.y > groundY - player.h) {
+      player.y = groundY - player.h;
+      player.vy = 0;
+      player.onGround = true;
+    }
+
+    // Draw player
+    ctx.fillStyle="#0f0";
+    ctx.fillRect(player.x,player.y,player.w,player.h);
+
+    // Update score
+    score++;
+    updateScoreDisplay();
+
+    // End test condition (for demo)
+    if (score>200) {
+      gameOver = true;
+      alert(`Game Over! Final score: ${score}`);
+      addScore(playerName, score);
+      gameScreen.classList.add('hidden');
+      formScreen.classList.remove('hidden');
+    } else {
+      requestAnimationFrame(loop);
+    }
+  }
+  loop();
+}
+</script>
+</body>
+</html>
