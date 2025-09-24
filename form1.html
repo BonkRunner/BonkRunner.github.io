@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>BonkRunner Demo</title>
+<style>
+  body { font-family: sans-serif; margin: 0; background: #111; color: #eee; text-align: center; }
+  .hidden { display: none; }
+  .screen { padding: 20px; }
+  input { padding: 8px; margin: 6px; border-radius: 4px; border: none; }
+  button { padding: 10px 16px; margin: 8px; border: none; border-radius: 4px; background: #28a; color: #fff; cursor: pointer; }
+  canvas { background: #222; display: block; margin: 20px auto; border-radius: 8px; }
+</style>
+</head>
+<body>
+
+<div id="paymentScreen" class="screen">
+  <h1>BonkRunner</h1>
+  <p>Pay $1.99 to play</p>
+  <button id="payBtn">Pay Now</button>
+  <p id="payStatus"></p>
+</div>
+
+<div id="formScreen" class="screen hidden">
+  <h2>Player Info</h2>
+  <form id="playerForm">
+    <input id="name" type="text" placeholder="Your name" required><br>
+    <input id="email" type="email" placeholder="you@example.com" required><br>
+    <button type="submit">Start Game</button>
+  </form>
+</div>
+
+<div id="gameScreen" class="screen hidden">
+  <h2>BonkRunner Game</h2>
+  <canvas id="gameCanvas" width="600" height="300"></canvas>
+  <p id="score">Score: 0</p>
+</div>
+
+<script>
+// ---- Fake payment ----
+const payBtn = document.getElementById('payBtn');
+const payStatus = document.getElementById('payStatus');
+const paymentScreen = document.getElementById('paymentScreen');
+const formScreen = document.getElementById('formScreen');
+const gameScreen = document.getElementById('gameScreen');
+
+payBtn.addEventListener('click', () => {
+  payStatus.textContent = "Processing payment...";
+  setTimeout(() => {
+    payStatus.textContent = "Payment successful ✅";
+    setTimeout(() => {
+      paymentScreen.classList.add('hidden');
+      formScreen.classList.remove('hidden');
+    }, 1000);
+  }, 1500);
+});
+
+// ---- Form ----
+document.getElementById('playerForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const name = document.getElementById('name').value.trim();
+  const email = document.getElementById('email').value.trim();
+  if (name && email) {
+    formScreen.classList.add('hidden');
+    gameScreen.classList.remove('hidden');
+    startGame();
+  }
+});
+
+// ---- Simple BonkRunner game ----
+function startGame() {
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+  let playerY = 200;
+  let velocityY = 0;
+  const gravity = 0.6;
+  const jump = -12;
+  let obstacles = [];
+  let score = 0;
+  let gameOver = false;
+
+  function spawnObstacle() {
+    obstacles.push({ x: canvas.width, y: 240, w: 20, h: 40 });
+  }
+  setInterval(() => { if (!gameOver) spawnObstacle(); }, 2000);
+
+  document.addEventListener('keydown', (e) => {
+    if (e.code === 'Space' && playerY >= 200) velocityY = jump;
+  });
+
+  function loop() {
+    if (gameOver) return;
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+
+    // Player
+    velocityY += gravity;
+    playerY += velocityY;
+    if (playerY > 200) { playerY = 200; velocityY = 0; }
+    ctx.fillStyle = "#0f0";
+    ctx.fillRect(50, playerY, 30, 30);
+
+    // Obstacles
+    ctx.fillStyle = "#f00";
+    obstacles.forEach(o => {
+      o.x -= 5;
+      ctx.fillRect(o.x, o.y, o.w, o.h);
+      // Collision
+      if (50 < o.x + o.w && 50+30 > o.x && playerY < o.y+o.h && playerY+30 > o.y) {
+        gameOver = true;
+        document.getElementById('score').textContent = "Game Over! Final Score: " + score;
+      }
+    });
+    obstacles = obstacles.filter(o => o.x > -o.w);
+
+    // Score
+    score++;
+    if (!gameOver) document.getElementById('score').textContent = "Score: " + score;
+
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
+</script>
+</body>
+</html>
