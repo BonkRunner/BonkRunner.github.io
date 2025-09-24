@@ -32,18 +32,20 @@
 
 <div id="gameScreen" class="screen hidden">
   <h2>BonkRunner Game</h2>
-  <canvas id="gameCanvas" width="600" height="300"></canvas>
+  <canvas id="gameCanvas" width="800" height="300"></canvas>
   <p id="score">Score: 0</p>
+  <button id="restartBtn" class="hidden">Restart Game</button>
 </div>
 
 <script>
-// ---- Fake payment ----
 const payBtn = document.getElementById('payBtn');
 const payStatus = document.getElementById('payStatus');
 const paymentScreen = document.getElementById('paymentScreen');
 const formScreen = document.getElementById('formScreen');
 const gameScreen = document.getElementById('gameScreen');
+const restartBtn = document.getElementById('restartBtn');
 
+// ---- Fake payment ----
 payBtn.addEventListener('click', () => {
   payStatus.textContent = "Processing payment...";
   setTimeout(() => {
@@ -67,57 +69,92 @@ document.getElementById('playerForm').addEventListener('submit', (e) => {
   }
 });
 
-// ---- Simple BonkRunner game ----
 function startGame() {
   const canvas = document.getElementById('gameCanvas');
   const ctx = canvas.getContext('2d');
-  let playerY = 200;
-  let velocityY = 0;
-  const gravity = 0.6;
-  const jump = -12;
+  const groundY = 250;
+
+  let player = { x: 50, y: groundY - 30, w: 30, h: 30, vy: 0 };
+  let gravity = 0.7;
+  let jumpForce = -12;
   let obstacles = [];
+  let spawnTimer = 0;
   let score = 0;
+  let speed = 5;
   let gameOver = false;
 
-  function spawnObstacle() {
-    obstacles.push({ x: canvas.width, y: 240, w: 20, h: 40 });
-  }
-  setInterval(() => { if (!gameOver) spawnObstacle(); }, 2000);
-
   document.addEventListener('keydown', (e) => {
-    if (e.code === 'Space' && playerY >= 200) velocityY = jump;
+    if (e.code === 'Space' && player.y >= groundY - player.h) {
+      player.vy = jumpForce;
+    }
   });
+
+  function spawnObstacle() {
+    const height = 30 + Math.random()*20;
+    obstacles.push({ x: canvas.width, y: groundY - height, w: 20, h: height });
+  }
+
+  function resetGame() {
+    player.y = groundY - 30;
+    player.vy = 0;
+    obstacles = [];
+    spawnTimer = 0;
+    score = 0;
+    speed = 5;
+    gameOver = false;
+    restartBtn.classList.add('hidden');
+    requestAnimationFrame(loop);
+  }
+
+  restartBtn.addEventListener('click', resetGame);
 
   function loop() {
     if (gameOver) return;
+
     ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    // Player
-    velocityY += gravity;
-    playerY += velocityY;
-    if (playerY > 200) { playerY = 200; velocityY = 0; }
+    // ---- Update player ----
+    player.vy += gravity;
+    player.y += player.vy;
+    if (player.y > groundY - player.h) { player.y = groundY - player.h; player.vy = 0; }
+
+    // Draw player
     ctx.fillStyle = "#0f0";
-    ctx.fillRect(50, playerY, 30, 30);
+    ctx.fillRect(player.x, player.y, player.w, player.h);
 
-    // Obstacles
+    // ---- Spawn obstacles ----
+    spawnTimer += 1;
+    if (spawnTimer > 90 - speed*2) { 
+      spawnObstacle();
+      spawnTimer = 0;
+    }
+
+    // ---- Update obstacles ----
     ctx.fillStyle = "#f00";
-    obstacles.forEach(o => {
-      o.x -= 5;
+    for (let i = obstacles.length-1; i>=0; i--) {
+      const o = obstacles[i];
+      o.x -= speed;
       ctx.fillRect(o.x, o.y, o.w, o.h);
+
       // Collision
-      if (50 < o.x + o.w && 50+30 > o.x && playerY < o.y+o.h && playerY+30 > o.y) {
+      if (player.x < o.x + o.w && player.x + player.w > o.x &&
+          player.y < o.y + o.h && player.y + player.h > o.y) {
         gameOver = true;
-        document.getElementById('score').textContent = "Game Over! Final Score: " + score;
+        document.getElementById('score').textContent = `Game Over! Final Score: ${score}`;
+        restartBtn.classList.remove('hidden');
       }
-    });
-    obstacles = obstacles.filter(o => o.x > -o.w);
 
-    // Score
+      if (o.x + o.w < 0) obstacles.splice(i, 1);
+    }
+
+    // ---- Score ----
     score++;
-    if (!gameOver) document.getElementById('score').textContent = "Score: " + score;
+    speed += 0.001; // Gradually increase speed
+    document.getElementById('score').textContent = `Score: ${score}`;
 
-    requestAnimationFrame(loop);
+    if (!gameOver) requestAnimationFrame(loop);
   }
+
   loop();
 }
 </script>
