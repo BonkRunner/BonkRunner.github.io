@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PubNub Messenger</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f0f2f5;
+        }
+        #chat-container {
+            border: 1px solid #ccc;
+            padding: 20px;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #messages {
+            height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 20px;
+            background: #fff;
+            border-radius: 5px;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 10px;
+            max-width: 70%;
+            word-wrap: break-word;
+        }
+        .my-message {
+            background: #0084ff;
+            color: white;
+            margin-left: auto;
+        }
+        .other-message {
+            background: #e9ecef;
+            margin-right: auto;
+        }
+        #message-input {
+            width: 80%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+        }
+        #send-button {
+            padding: 10px 20px;
+            background: #0084ff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #send-button:hover {
+            background: #0066cc;
+        }
+        #user-selection {
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="user-selection">
+            <label for="username">Choose your username: </label>
+            <input type="text" id="username" placeholder="Enter your username">
+            <button onclick="setUser()">Set Username</button>
+        </div>
+        <div id="messages"></div>
+        <div>
+            <input type="text" id="message-input" placeholder="Type a message...">
+            <button id="send-button" onclick="sendMessage()">Send</button>
+        </div>
+    </div>
+
+    <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.7.4.0.min.js"></script>
+    <script>
+        let pubnub;
+        let username = '';
+        const channel = 'chat-channel';
+
+        function setUser() {
+            username = document.getElementById('username').value.trim();
+            if (username) {
+                initializePubNub();
+                document.getElementById('user-selection').style.display = 'none';
+                document.getElementById('message-input').focus();
+            } else {
+                alert('Please enter a username');
+            }
+        }
+
+        function initializePubNub() {
+            pubnub = new PubNub({
+                publishKey: 'YOUR_PUBNUB_PUBLISH_KEY',
+                subscribeKey: 'YOUR_PUBNUB_SUBSCRIBE_KEY',
+                userId: username
+            });
+
+            pubnub.addListener({
+                message: function(event) {
+                    displayMessage(event.message);
+                }
+            });
+
+            pubnub.subscribe({
+                channels: [channel]
+            });
+        }
+
+        function sendMessage() {
+            const messageInput = document.getElementById('message-input');
+            const message = messageInput.value.trim();
+            
+            if (message && username) {
+                pubnub.publish({
+                    channel: channel,
+                    message: {
+                        sender: username,
+                        content: message,
+                        timestamp: new Date().toLocaleTimeString()
+                    }
+                });
+                messageInput.value = '';
+            }
+        }
+
+        function displayMessage(message) {
+            const messagesDiv = document.getElementById('messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message ' + (message.sender === username ? 'my-message' : 'other-message');
+            messageDiv.innerHTML = `<strong>${message.sender}</strong> (${message.timestamp}): ${message.content}`;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        document.getElementById('message-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>
