@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PubNub Simple Listener</title>
+  <script src="https://cdn.pubnub.com/sdk/javascript/pubnub.8.2.5.min.js"></script>
+</head>
+<body>
+  <div id="box"></div>
+  <script>
+    // Replace with your own keys from admin.pubnub.com
+    var pubnub = new PubNub({
+      publishKey: 'PUBNUB_PUBLISH_KEY',
+      subscribeKey: 'PUBNUB_SUBSCRIBE_KEY',
+      userId: 'user1'
+    });
+    var channel = '10chat';
+
+    pubnub.addListener({
+      message: function (m) {
+        document.getElementById('box').innerHTML += '<div>' + m.message + ' (' + m.publisher + ')</div>';
+      }
+    });
+
+    pubnub.subscribe({channels: [channel]});
+  </script>
+</body>
+</html>
